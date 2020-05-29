@@ -36,72 +36,52 @@ class SVM:
         summa = np.sum(self.alpha[i] * y[i] * self.__kernel_func(x[i], point) for i in range(len(y)))
         return summa + self.b
 
-    def linear_draw(self, x, y):
+    def draw_decision(self, x, y):
         fig, ax = plt.subplots(1, 1)
         fig.set_dpi(200)
 
-        h = 0.05
-        x_min, x_max = x[:, 0].min() - 1, x[:, 0].max() + 1
-        y_min, y_max = x[:, 1].min() - 1, x[:, 1].max() + 1
-        x_p = np.arange(x_min, x_max, h)
-
-        w = np.sum(self.alpha[i] * y[i] * x[i] for i in range(len(y)))
-        k = -  w[0] / w[1]
-        ax.scatter(x[:, 0], x[:, 1], c=y, cmap='summer')
-        ax.text(x_max - 2, y_max - 0.5, "Class 2, y = -1")
-        ax.text(x_min + 0.1, y_min + 0.5, "Class 1, y = 1")
-        for i in range(len(y)):
-            if self.alpha[i] > 0:
-                if y[i] == 1:
-                    ax.plot(x_p, k * x_p + (1 - self.b) / w[1], 'k--')
-                    ax.scatter(x[i, 0], x[i, 1], c="crimson")
-                    ax.text(x_min + 0.1, k * (x_min + 0.1) + (1 - self.b) / w[1] - 1, '(w, x) + b = 1', rotation=-22)
-                else:
-                    ax.plot(x_p, k * x_p + (- 1 - self.b) / w[1], 'k--')
-                    ax.scatter(x[i, 0], x[i, 1], c="orange")
-                    ax.text(x_min + 0.1, k * (x_min + 0.1) + (- 1 - self.b) / w[1] - 1, '(w, x) + b = -1', rotation=-22)
-
-        ax.plot(x_p, k * x_p - self.b / w[1], 'k-')
-        ax.text(x_min + 0.1, k * (x_min + 0.1) - self.b / w[1] - 1, '(w, x) + b = 0', rotation=-22)
-
-        title = "Training set with decision regions for " + str(self.kernel) + " kernel, \n C = " + str(
-            self.C) + ", tol = " + str(self.tol)
-        ax.set_title(title)
-        ax.set_xlim(x_min, x_max)
-        ax.set_ylim(y_min, y_max)
-        ax.set_xlabel('x_1')
-        ax.set_ylabel('x_2')
-        plt.show()
-
-    def non_linear_draw(self, x, y):
-        fig, ax = plt.subplots(1, 1)
-        fig.set_dpi(200)
+        point_colors = ['mediumseagreen', 'tomato']
 
         h = 0.05
         x_min, x_max = x[:, 0].min() - 1, x[:, 0].max() + 1
         y_min, y_max = x[:, 1].min() - 1, x[:, 1].max() + 1
 
-        print("Calculate points")
-        points = [[x_item, y_item] for y_item in np.arange(y_min, y_max, h) for x_item in np.arange(x_min, x_max, h)]
-        points = np.array(points)
-        print("Calculate y")
-        y_points = [self.value_decision_function(item, x, y) for item in points]
-        points = np.array(points)
-        y_points = np.array(y_points)
-        y_points[y_points > 0.0] = 1
-        y_points[y_points < 0.0] = -1
+        p_Y, p_X = np.meshgrid(np.arange(y_min, y_max, h), np.arange(x_min, x_max, h))
+        xy = np.vstack([p_X.ravel(), p_Y.ravel()]).T
+        P = np.array([self.value_decision_function(item, x, y) for item in xy])
+        P = P.reshape(p_X.shape)
+        ax.contour(p_X, p_Y, P, colors=['blue', 'black', 'magenta'], levels=[-1, 0, 1], alpha=0.5,
+                   linestyles=['--', '-', '--'])
 
-        ax.scatter(points[:, 0], points[:, 1], c=y_points, cmap='Pastel2')
-        ax.scatter(x[:, 0], x[:, 1], c=y, cmap='summer')
         for i in range(len(y)):
-            if self.alpha[i] > 0:
-                if y[i] == -1:
-                    ax.scatter(x[i, 0], x[i, 1], c="crimson")
+            curr_color = point_colors[0]
+            if y[i] == 1:
+                curr_color = point_colors[1]
+            if self.alpha[i] > 0.0:
+                if self.alpha[i] == self.C:
+                    ax.scatter(x[i, 0], x[i, 1], marker='s', c=curr_color)
                 else:
-                    ax.scatter(x[i, 0], x[i, 1], c="orange")
+                    ax.scatter(x[i, 0], x[i, 1], marker='X', c=curr_color)
+            else:
+                ax.scatter(x[i, 0], x[i, 1], marker='o', c=curr_color)
 
-        title = "Training set with decision regions for " + str(self.kernel) + " kernel, \n C = " + str(
-            self.C) + ", gamma = " + str(self.gamma) + ", tol = " + str(self.tol)
+        if self.kernel == 'linear':
+            ax.text(x_max - 2, y_max - 0.5, "Class 2, y = -1")
+            ax.text(x_min + 0.1, y_min + 0.5, "Class 1, y = 1")
+
+            w = np.sum(self.alpha[i] * y[i] * x[i] for i in range(len(y)))
+            k = - w[0] / w[1]
+
+            ax.text(x_min + 0.1, k * (x_min + 0.1) + (1 - self.b) / w[1] - 1, '(w, x) + b = 1', rotation=-22)
+            ax.text(x_min + 0.1, k * (x_min + 0.1) - self.b / w[1] - 1, '(w, x) + b = 0', rotation=-22)
+            ax.text(x_min + 0.1, k * (x_min + 0.1) + (- 1 - self.b) / w[1] - 1, '(w, x) + b = -1',rotation=-22)
+        else:
+            ax.text(x_min, y_max-0.5, 'Violet line corresponds f(x) = -1')
+            ax.text(x_min, y_min+0.5, 'Blue line corresponds f(x) = 1')
+            ax.axis('equal')
+
+        title = "Training set with decision regions for " + str(self.kernel) + " kernel, \n C = " \
+                + str(self.C) + ", gamma = " + str(self.gamma) + ", tol = " + str(self.tol)
         ax.set_title(title)
         ax.set_xlim(x_min, x_max)
         ax.set_ylim(y_min, y_max)
@@ -120,7 +100,7 @@ class SVM:
 
     def __SOR(self, M, e):
         length = len(e)
-        omega = 1
+        omega = 0.1
         alpha_prev = np.zeros(length)
         alpha_curr = np.zeros(length)
         num_iter = 0
@@ -168,33 +148,42 @@ class SVM:
         # print("M = \n", M)
         self.alpha = self.__SOR(M, e)
         self.b = np.sum(self.alpha * y)
-        print("-----------------------")
-        print("Answer SOR:")
-        print("Alpha = ", self.alpha)
-        print("b = ", self.b)
-        print("-----------------------")
+        # print("-----------------------")
+        # print("Answer SOR:")
+        # print("Alpha = ", self.alpha)
+        # print("b = ", self.b)
+        # print("-----------------------")
 
     def predict(self, points, x, y):
-        y_predict = np.zeros(len(points))
-        i = 0
-        for item in points:
-            print("Predict ", item)
-            value = self.value_decision_function(item, x, y)
-            y_predict[i] = np.sign(value)
+        y_predict = np.array([np.sign(self.value_decision_function(item, x, y)) for item in points])
         y_predict[y_predict == 0] = 1
         return y_predict
+
+    def number_support_vectors(self):
+        link_supp_vec = 0
+        supp_vec = 0
+        for i in range(len(self.alpha)):
+            if self.alpha[i] > 0.0:
+                if self.alpha[i] == self.C:
+                    link_supp_vec += 1
+                else:
+                    supp_vec += 1
+
+        print("Number of support vectors: ", supp_vec)
+        print("Number of link support vectors: ", link_supp_vec)
+
+    def score_error(self, y_predict, y_real):
+        score = 0
+        for i in range(len(y_predict)):
+            if y_predict[i] != y_real[i]:
+                score += 1
+        return score / len(y_predict)
 
     def linear_kernel(self, x1, x2):
         return x1.dot(x2)
 
     def rbf_kernel(self, x1, x2):
-        x1 = np.atleast_2d(x1)
-        x2 = np.atleast_2d(x2)
-        s1, _ = x1.shape
-        s2, _ = x2.shape
-        norm1 = np.ones((s2, 1)).dot(np.atleast_2d(np.sum(x1 ** 2, axis=1))).T
-        norm2 = np.ones((s1, 1)).dot(np.atleast_2d(np.sum(x2 ** 2, axis=1)))
-        return np.exp(- self.gamma * (norm1 + norm2 - 2 * x1.dot(x2.T)))[0][0]
+        return np.exp(- self.gamma * (self.norm(x1, x2)) ** 2)
 
     def norm(self, x1, x2):
         return np.linalg.norm(np.atleast_2d(x2 - x1))
